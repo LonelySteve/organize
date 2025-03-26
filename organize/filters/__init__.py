@@ -1,6 +1,7 @@
 from .created import Created
 from .date_added import DateAdded
 from .date_lastused import DateLastUsed
+from .dircontent import DirContent
 from .duplicate import Duplicate
 from .empty import Empty
 from .exif import Exif
@@ -32,4 +33,5 @@ ALL = (
     Python,
     Regex,
     Size,
+    DirContent,
 )
