@@ -16,6 +16,8 @@ DEFAULT_SYSTEM_EXCLUDE_FILES = {
 DEFAULT_SYSTEM_EXCLUDE_DIRS = {
     ".git",
     ".svn",
+    "$RECYCLE.BIN",
+    "System Volume Information",
 }
 
 
