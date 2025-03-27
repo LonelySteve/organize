@@ -54,6 +54,7 @@ mkdocs-autorefs = { version = "^0.5.0", optional = true }
 mkdocs-include-markdown-plugin = { version = "^6.0.4", optional = true }
 mkdocstrings = { version = "^0.24.0", extras = ["python"], optional = true }
 markupsafe = { version = "2.0.1", optional = true }                          # Pinned: https://stackoverflow.com/q/72191560/300783
+pymediainfo = "^7.0.1"
 
 [tool.poetry.extras]
 docs = [

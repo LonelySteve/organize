@@ -10,6 +10,7 @@ from .filecontent import FileContent
 from .hash import Hash
 from .lastmodified import LastModified
 from .macos_tags import MacOSTags
+from .mediainfo import MediaInfo
 from .mimetype import MimeType
 from .name import Name
 from .python import Python
@@ -34,4 +35,5 @@ ALL = (
     Regex,
     Size,
     DirContent,
+    MediaInfo,
 )
