@@ -16,7 +16,7 @@ from .utils import ReportSummary
 from .validators import FlatList, flatten
 from .walker import Walker
 
-FilterMode = Literal["all", "any", "none"]
+FilterMode = Literal["all", "any", "none", "not"]
 
 
 def action_from_dict(d: Dict) -> Action:
@@ -86,6 +86,10 @@ def filter_pipeline(
         collection = Any(*filters)
     elif filter_mode == "none":
         collection = All(*[Not(x) for x in filters])
+    elif filter_mode == "not":
+        # 仅取反 filters 最后一个
+        *first_to_second_last, last_one = filters
+        collection = All(*first_to_second_last, Not(last_one))
     else:
         raise ValueError(f"Unknown filter mode {filter_mode}")
     return collection.pipeline(res, output=output)
