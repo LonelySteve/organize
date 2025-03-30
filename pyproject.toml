@@ -55,6 +55,8 @@ mkdocs-include-markdown-plugin = { version = "^6.0.4", optional = true }
 mkdocstrings = { version = "^0.24.0", extras = ["python"], optional = true }
 markupsafe = { version = "2.0.1", optional = true }                          # Pinned: https://stackoverflow.com/q/72191560/300783
 pymediainfo = "^7.0.1"
+pillow = "^11.1.0"
+pillow-heif = "^0.22.0"
 
 [tool.poetry.extras]
 docs = [
