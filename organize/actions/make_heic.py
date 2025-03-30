@@ -57,4 +57,6 @@ class MakeHeic:
 
         if not simulate:
             primary_image, *additional_images = (Image.open(file) for file in src)
-            primary_image.save(dst, save_all=True, append_images=additional_images)
+            primary_image.save(
+                dst, save_all=True, append_images=additional_images, format="HEIF"
+            )
