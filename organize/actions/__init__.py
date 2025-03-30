@@ -10,6 +10,7 @@ from .extract_heic import ExtractHeic
 from .hardlink import Hardlink
 from .macos_tags import MacOSTags
 from .make_heic import MakeHeic
+from .make_pdf import MakePdf
 from .move import Move
 from .python import Python
 from .rename import Rename
@@ -34,4 +35,5 @@ ALL: Tuple[Type[Action], ...] = (
     Write,
     MakeHeic,
     ExtractHeic,
+    MakePdf,
 )
