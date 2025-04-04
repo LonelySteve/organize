@@ -1,22 +1,27 @@
 from pathlib import Path
-from typing import Dict, Iterable, List, Literal, Optional, Set
+from typing import Dict, List, Literal, Optional, Set, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from organize.logger import logger
 
-from .action import Action
-from .filter import All, Any, Filter, HasFilterPipeline, Not
+from .action import Action, GroupAction, action_pipeline
+from .filter import (
+    Filter,
+    FilterMode,
+    GroupFilter,
+    Not,
+    filter_pipeline,
+    group_filter_pipeline,
+)
 from .location import Location
 from .output import Output
 from .registry import action_by_name, filter_by_name
 from .resource import Resource
 from .template import render
-from .utils import ReportSummary
+from .utils import ReportSummary, classify_by_type
 from .validators import FlatList, flatten
 from .walker import Walker
-
-FilterMode = Literal["all", "any", "none", "not"]
 
 
 def action_from_dict(d: Dict) -> Action:
@@ -39,6 +44,19 @@ def action_from_dict(d: Dict) -> Action:
         return ActionCls(**value)
     else:
         return ActionCls(value)
+
+
+def group_action_from_dict(name: str, d: Dict | List) -> GroupAction:
+    if isinstance(d, List):
+        d = {"actions": d}
+
+    if not len(d.keys()) == 1:
+        raise ValueError("Group action definition must have only one key")
+    actions = transform_instances(d["actions"], action_from_dict)
+    return GroupAction(
+        name,
+        actions=actions,
+    )
 
 
 def filter_from_dict(d: Dict) -> Filter:
@@ -73,40 +91,35 @@ def filter_from_dict(d: Dict) -> Filter:
     return Not(inst) if invert_filter else inst
 
 
-def filter_pipeline(
-    filters: Iterable[Filter],
-    filter_mode: FilterMode,
-    res: Resource,
-    output: Output,
-) -> bool:
-    collection: HasFilterPipeline
-    if filter_mode == "all":
-        collection = All(*filters)
-    elif filter_mode == "any":
-        collection = Any(*filters)
-    elif filter_mode == "none":
-        collection = All(*[Not(x) for x in filters])
-    elif filter_mode == "not":
-        # 仅取反 filters 最后一个
-        *first_to_second_last, last_one = filters
-        collection = All(*first_to_second_last, Not(last_one))
-    else:
-        raise ValueError(f"Unknown filter mode {filter_mode}")
-    return collection.pipeline(res, output=output)
+def group_filter_from_dict(name: str, d: Dict) -> GroupFilter:
+    filters = transform_instances(d.get("filters", []), filter_from_dict)
+
+    return GroupFilter(
+        name,
+        filters=filters,
+        filter_mode=d.get("filter_mode", "all"),
+        depend_on=d.get("depend_on", []),
+    )
 
 
-def action_pipeline(
-    actions: Iterable[Action],
-    res: Resource,
-    simulate: bool,
-    output: Output,
-) -> Iterable[Action]:
-    for action in actions:
-        try:
-            yield action
-            action.pipeline(res=res, simulate=simulate, output=output)
-        except StopIteration:
-            break
+def transform_instances(instances, instance_from_dict):
+    result = []
+    instances = flatten(instances)
+    for x in instances:
+        # make sure "- extension" becomes "- extension:"
+        if isinstance(x, str):
+            x = {x: None}
+        # create instance from dict
+        if isinstance(x, dict):
+            result.append(instance_from_dict(x))
+        # other instances
+        else:
+            result.append(x)
+    return result
+
+
+def transform_instances_dict(instances: Dict, instance_from_dict):
+    return [instance_from_dict(k, v) for k, v in instances.items()]
 
 
 class Rule(BaseModel):
@@ -116,9 +129,9 @@ class Rule(BaseModel):
     locations: FlatList[Location] = Field(default_factory=list)
     subfolders: bool = False
     tags: Set[str] = Field(default_factory=set)
-    filters: List[Filter] = Field(default_factory=list)
+    filters: Union[List[Filter], List[GroupFilter]] = Field(default_factory=list)
     filter_mode: FilterMode = "all"
-    actions: List[Action] = Field(..., min_length=1)
+    actions: Union[List[Action], List[GroupAction]] = Field(..., min_length=1)
 
     model_config = ConfigDict(
         extra="forbid",
@@ -139,57 +152,60 @@ class Rule(BaseModel):
 
     @field_validator("filters", mode="before")
     def validate_filters(cls, filters):
-        result = []
-        filters = flatten(filters)
-        for x in filters:
-            # make sure "- extension" becomes "- extension:"
-            if isinstance(x, str):
-                x = {x: None}
-            # create instance from dict
-            if isinstance(x, dict):
-                result.append(filter_from_dict(x))
-            # other instances
-            else:
-                result.append(x)
-        return result
+        if isinstance(filters, dict):
+            return transform_instances_dict(filters, group_filter_from_dict)
+        else:
+            return transform_instances(filters, filter_from_dict)
 
     @field_validator("actions", mode="before")
     def validate_actions(cls, actions):
-        result = []
-        actions = flatten(actions)
-        for x in actions:
-            # make sure "- extension" becomes "- extension:"
-            if isinstance(x, str):
-                x = {x: None}
-            # create instance from dict
-            if isinstance(x, dict):
-                result.append(action_from_dict(x))
-            # other instances
-            else:
-                result.append(x)
-        return result
+        if isinstance(actions, dict):
+            return transform_instances_dict(actions, group_action_from_dict)
+        else:
+            return transform_instances(actions, action_from_dict)
 
     @model_validator(mode="after")
     def validate_target_support(self) -> "Rule":
+        all_filters = []
+        if isinstance(
+            self.filters, list
+        ):  # Result of validation can be List[Filter] or List[GroupFilter]
+            for f in self.filters:
+                if isinstance(f, GroupFilter):
+                    all_filters.extend(f.filters)
+                else:
+                    all_filters.append(f)
+
+        all_actions = []
+        if isinstance(
+            self.actions, list
+        ):  # Result of validation can be List[Action] or List[GroupAction]
+            for a in self.actions:
+                if isinstance(a, GroupAction):
+                    all_actions.extend(a.actions)
+                else:
+                    all_actions.append(a)
+
         # standalone mode
         if not self.locations:
             if self.filters:
                 raise ValueError("Filters are present but no locations are given!")
-            for action in self.actions:
+            for action in all_actions:
                 if not action.action_config.standalone:
                     raise ValueError(
                         f'Action "{action.action_config.name}" does not support '
                         "standalone mode (no rule.locations specified)."
                     )
+
         # targets dirs
         if self.targets == "dirs":
-            for filter in self.filters:
+            for filter in all_filters:
                 if not filter.filter_config.dirs:
                     raise ValueError(
                         f'Filter "{filter.filter_config.name}" does not support '
                         "folders (targets: dirs)"
                     )
-            for action in self.actions:
+            for action in all_actions:
                 if not action.action_config.dirs:
                     raise ValueError(
                         f'Action "{action.action_config.name}" does not support '
@@ -197,13 +213,13 @@ class Rule(BaseModel):
                     )
         # targets files
         elif self.targets == "files":
-            for filter in self.filters:
+            for filter in all_filters:
                 if not filter.filter_config.files:
                     raise ValueError(
                         f'Filter "{filter.filter_config.name}" does not support '
                         "files (targets: files)"
                     )
-            for action in self.actions:
+            for action in all_actions:
                 if not action.action_config.files:
                     raise ValueError(
                         f'Action "{action.action_config.name}" does not support '
@@ -255,12 +271,15 @@ class Rule(BaseModel):
         if not self.enabled:
             return ReportSummary()
 
+        group_filters, filters = classify_by_type(self.filters, [GroupFilter, Filter])
+        group_actions, actions = classify_by_type(self.actions, [GroupAction, Action])
+
         # standalone mode
         if not self.locations:
             res = Resource(path=None, rule_nr=rule_nr)
             try:
                 for action in action_pipeline(
-                    actions=self.actions,
+                    actions=actions,
                     res=res,
                     simulate=simulate,
                     output=output,
@@ -283,16 +302,46 @@ class Rule(BaseModel):
         for res in self.walk(rule_nr=rule_nr):
             if res.path in skip_pathes:
                 continue
+
+            if group_filters:
+                result = group_filter_pipeline(
+                    filters=group_filters,
+                    res=res,
+                    output=output,
+                )
+                matched_group_actions = list(
+                    filter(lambda a: a.name in result, group_actions)
+                )
+                try:
+                    for action in action_pipeline(
+                        actions=matched_group_actions,
+                        res=res,
+                        simulate=simulate,
+                        output=output,
+                    ):
+                        pass
+                    skip_pathes = skip_pathes.union(res.walker_skip_pathes)
+                    summary.success += 1
+                except Exception as e:
+                    output.msg(
+                        res=res,
+                        msg=str(e),
+                        level="error",
+                        sender=action,
+                    )
+                    logger.exception(e)
+                    summary.errors += 1
+
             result = filter_pipeline(
-                filters=self.filters,
+                filters=filters,
                 filter_mode=self.filter_mode,
                 res=res,
                 output=output,
             )
-            if result:
+            if result and self.actions:
                 try:
                     for action in action_pipeline(
-                        actions=self.actions,
+                        actions=actions,
                         res=res,
                         simulate=simulate,
                         output=output,

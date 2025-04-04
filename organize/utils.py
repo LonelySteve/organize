@@ -83,3 +83,13 @@ def deep_merge_inplace(base: dict, updates: dict) -> None:
             deep_merge_inplace(av, bv)
         else:
             base[bk] = bv
+
+
+def classify_by_type(data_iterable, types_to_classify):
+    classified_lists = [[] for _ in types_to_classify]
+    for item in data_iterable:
+        for index, target_type in enumerate(types_to_classify):
+            if isinstance(item, target_type):
+                classified_lists[index].append(item)
+                break
+    return tuple(classified_lists)
