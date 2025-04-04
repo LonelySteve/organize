@@ -60,6 +60,8 @@ class MediaInfo:
         if "video_tracks" == self.media_infos and media_info.video_tracks:
             return True
 
+        return False
+
     def pipeline(self, res: Resource, output: Output) -> bool:
         assert res.path is not None, "Does not support standalone mode"
 
