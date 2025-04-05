@@ -70,3 +70,11 @@ class MediaInfos:
         res.vars[self.filter_config.name] = media_infos
 
         return self.matches(media_infos)
+
+
+if __name__ == "__main__":
+    # Example usage
+    import sys
+
+    media_info = PyMediaInfo.parse(Path(sys.argv[1]))
+    print(media_info.general_tracks[0].to_data())
