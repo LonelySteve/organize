@@ -36,7 +36,7 @@ class Rename:
     new_name: str
     on_conflict: ConflictMode = "rename_new"
     rename_template: str = "{name} {counter}{extension}"
-    # TODO: keep_extension?
+    keep_extension: bool = True
 
     action_config: ClassVar[ActionConfig] = ActionConfig(
         name="rename",
@@ -57,6 +57,8 @@ class Rename:
                 "The new name cannot contain slashes. "
                 "To move files or folders use `move`."
             )
+        if self.keep_extension:
+            new_name = new_name + res.path.suffix
         dst = res.path.with_name(new_name)
         skip_action, dst = resolve_conflict(
             dst=dst,
