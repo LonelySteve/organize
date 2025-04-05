@@ -11,7 +11,7 @@ from organize.resource import Resource
 
 
 @dataclass(config=ConfigDict(extra="forbid"))
-class MediaInfo:
+class MediaInfos:
     media_infos: (
         Literal["image_tracks"] | Literal["audio_tracks"] | Literal["video_tracks"]
     ) | None = None
@@ -26,7 +26,7 @@ class MediaInfo:
     buffer_size: int | None = 64 * 1024
 
     filter_config: ClassVar[FilterConfig] = FilterConfig(
-        name="mediainfo", files=True, dirs=False
+        name="mediainfos", files=True, dirs=False
     )
 
     def parse(self, p: Path):
@@ -65,7 +65,12 @@ class MediaInfo:
     def pipeline(self, res: Resource, output: Output) -> bool:
         assert res.path is not None, "Does not support standalone mode"
 
-        media_info = self.parse(res.path)
-        res.vars[self.filter_config.name] = media_info
+        media_infos = self.parse(res.path)
 
-        return self.matches(media_info)
+        pass_media_infos = media_infos
+        if self.media_infos is not None:
+            pass_media_infos = getattr(media_infos, self.media_infos, None)
+
+        res.vars[self.filter_config.name] = pass_media_infos
+
+        return self.matches(media_infos)
