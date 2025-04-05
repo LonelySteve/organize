@@ -93,12 +93,22 @@ def filter_from_dict(d: Dict) -> Filter:
 
 def group_filter_from_dict(name: str, d: Dict) -> GroupFilter:
     filters = transform_instances(d.get("filters", []), filter_from_dict)
+    original_depend_on = set(d.get("depend_on", []))
+
+    depend_on = set()
+    depend_on_inverted = set()
+    for dep in original_depend_on:
+        if dep.startswith("not "):
+            dep = dep[4:]
+            depend_on_inverted.add(dep)
+        depend_on.add(dep)
 
     return GroupFilter(
         name,
         filters=filters,
         filter_mode=d.get("filter_mode", "all"),
-        depend_on=d.get("depend_on", []),
+        depend_on=depend_on,
+        depend_on_inverted=depend_on_inverted,
     )
 
 

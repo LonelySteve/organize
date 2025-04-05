@@ -8,6 +8,7 @@ from typing import (
     Literal,
     NamedTuple,
     Protocol,
+    Set,
     runtime_checkable,
 )
 
@@ -47,11 +48,12 @@ class Filter(HasFilterPipeline, HasFilterConfig, Protocol):
 
 
 @dataclass(config=ConfigDict(extra="forbid", arbitrary_types_allowed=True))
-class GroupFilter:
+class GroupFilter(HasFilterPipeline):
     name: str
     filters: List[Filter] = Field(default_factory=list)
     filter_mode: FilterMode = "all"
-    depend_on: List[str] = Field(default_factory=list)
+    depend_on: Set[str] = Field(default_factory=set)
+    depend_on_inverted: Set[str] = Field(default_factory=set)
 
     def pipeline(self, res: Resource, output: Output) -> bool:
         return filter_pipeline(self.filters, self.filter_mode, res, output)
@@ -126,16 +128,23 @@ class GroupFilter:
                     round_matched.append(name)
                     # 只有匹配的节点才能“激活”其后继节点
                     for child in children[name]:
+                        if name in nodes[child].depend_on_inverted:
+                            continue
                         in_degree[child] -= 1
                         if in_degree[child] == 0:
                             next_round.append(child)
+                else:
+                    for child in children[name]:
+                        if name in nodes[child].depend_on_inverted:
+                            in_degree[child] -= 1
+                            if in_degree[child] == 0:
+                                next_round.append(child)
+
                 # 如果当前节点不匹配，则其后继不被考虑
             if round_matched:
                 result.extend(round_matched)
-                current_round = next_round
-            else:
-                # 当前层没有匹配的节点，则停止遍历
-                break
+
+            current_round = next_round
 
         return result
 
