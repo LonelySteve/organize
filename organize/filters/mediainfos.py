@@ -67,10 +67,6 @@ class MediaInfos:
 
         media_infos = self.parse(res.path)
 
-        pass_media_infos = media_infos
-        if self.media_infos is not None:
-            pass_media_infos = getattr(media_infos, self.media_infos, None)
-
-        res.vars[self.filter_config.name] = pass_media_infos
+        res.vars[self.filter_config.name] = media_infos
 
         return self.matches(media_infos)
