@@ -48,10 +48,12 @@ class Rename:
     def __post_init__(self):
         self._new_name = Template.from_string(self.new_name)
         self._rename_template = Template.from_string(self.rename_template)
+        self.counter = 1
 
     def pipeline(self, res: Resource, output: Output, simulate: bool):
         assert res.path is not None, "Does not support standalone mode"
-        new_name = render(self._new_name, res.dict())
+        new_name = render(self._new_name, {**res.dict(), **{"counter": self.counter}})
+        self.counter += 1
         if "/" in new_name:
             raise ValueError(
                 "The new name cannot contain slashes. "
