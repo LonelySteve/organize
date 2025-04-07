@@ -91,7 +91,9 @@ def filter_from_dict(d: Dict) -> Filter:
     return Not(inst) if invert_filter else inst
 
 
-def group_filter_from_dict(name: str, d: Dict) -> GroupFilter:
+def group_filter_from_dict(name: str, d: Dict | List) -> GroupFilter:
+    if isinstance(d, List):
+        d = {"filters": d}
     filters = transform_instances(d.get("filters", []), filter_from_dict)
     original_depend_on = d.get("depend_on", [])
     original_depend_on = set(
