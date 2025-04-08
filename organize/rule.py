@@ -105,8 +105,8 @@ def group_filter_from_dict(name: str, d: Dict | List) -> GroupFilter:
     depend_on = set()
     depend_on_inverted = set()
     for dep in original_depend_on:
-        if dep.startswith("not "):
-            dep = dep[4:]
+        *modifiers, dep = dep.split()
+        if "not" in modifiers:
             depend_on_inverted.add(dep)
         depend_on.add(dep)
 
@@ -116,6 +116,7 @@ def group_filter_from_dict(name: str, d: Dict | List) -> GroupFilter:
         filter_mode=d.get("filter_mode", "all"),
         depend_on=depend_on,
         depend_on_inverted=depend_on_inverted,
+        depend_on_mode=d.get("depend_on_mode", "and"),
     )
 
 
@@ -326,6 +327,7 @@ class Rule(BaseModel):
                     res=res,
                     output=output,
                 )
+                result = result or ["__default__"]
                 matched_group_actions = list(
                     filter(lambda a: a.name in result, group_actions)
                 )
