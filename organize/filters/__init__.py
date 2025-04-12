@@ -7,6 +7,7 @@ from .empty import Empty
 from .exif import Exif
 from .extension import Extension
 from .filecontent import FileContent
+from .fns import FileNamingStandard
 from .hash import Hash
 from .lastmodified import LastModified
 from .macos_tags import MacOSTags
@@ -36,4 +37,5 @@ ALL = (
     Size,
     DirContent,
     MediaInfos,
+    FileNamingStandard,
 )
