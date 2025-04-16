@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Optional
 
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 
 def format_path(path: Path, base_style: str, main_style: str) -> str:
-    base = escape(f"{path.parent}/")
+    base = escape(f"{path.parent}{os.sep}")
     main = escape(path.name)
     return f"[{base_style}]{base}[/][{main_style}]{main}[/]"
 
