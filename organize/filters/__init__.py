@@ -14,6 +14,7 @@ from .macos_tags import MacOSTags
 from .mediainfos import MediaInfos
 from .mimetype import MimeType
 from .name import Name
+from .otaku_mediainfos import OtakuMediaInfos
 from .python import Python
 from .regex import Regex
 from .size import Size
@@ -38,4 +39,5 @@ ALL = (
     DirContent,
     MediaInfos,
     FileNamingStandard,
+    OtakuMediaInfos,
 )

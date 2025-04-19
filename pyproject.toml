@@ -57,6 +57,7 @@ markupsafe = { version = "2.0.1", optional = true }                          # P
 pymediainfo = "^7.0.1"
 pillow = "^11.1.0"
 pillow-heif = "^0.22.0"
+otaku-media-info = {path = "../otaku_media_info", develop = true}
 
 [tool.poetry.extras]
 docs = [
